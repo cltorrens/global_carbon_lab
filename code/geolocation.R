@@ -21,7 +21,7 @@ source('~/flux/code/project_functions.R')
 site_info <- read.csv('aquatic/edi.643.5/siteInformation.csv', row.names = NULL)
 lake_data <- read.csv('aquatic/edi.643.5/LakeData.csv', row.names = NULL)
 holgerson_lake_data <- read.csv('aquatic/LakeMetabolismHolgerson.csv', row.names = NULL)
-
+stream_pulse_sites <- read.csv('aquatic/stream_pulse/all_basic_site_data.csv')
 # Datasets with DOC -------------------------------------------------------
 doc <- lake_data %>% 
   filter(Variable == 'doc')
@@ -58,7 +58,18 @@ st_write(geo_flux, 'geospatial/georeferenced_flux_2015_dataset.shp')
 df_lakes_flux <- rbind(df_terrestrial, df_combined_lakes)
 geo_lakes_flux <- st_as_sf(df_lakes_flux, coords = c("longitude", "latitude"), crs = 4326)
 st_write(geo_lakes_flux, 'geospatial/georeferenced_doc_lakes_williamson_holgerson_flux.shp')
+geo_lakes_flux <- st_read('geospatial/georeferenced_doc_lakes_williamson_holgerson_flux.shp')
 
+# Stream pulse ------------------------------------------------------------
+df_stream_pulse <- stream_pulse_sites %>% 
+  select(latitude, longitude) %>% 
+  distinct(latitude, longitude) %>% 
+  mutate(dataset = 'stream_pulse') %>% 
+  filter(!is.na(latitude))
+
+geo_stream <- st_as_sf(df_stream_pulse, coords = c("longitude", "latitude"), crs = 4326)
+df_lakes_flux_stream <- rbind(geo_lakes_flux, geo_stream)
+st_write(df_lakes_flux_stream, 'geospatial/georeferenced_doc_lakes_williamson_holgerson_flux_stream_pulse.shp')
 
 # Maps --------------------------------------------------------------------
 library(rnaturalearth)
@@ -84,8 +95,18 @@ ggplot() +
 # Lakes and Flux
 ggplot() +
   geom_sf(data = world, fill = "lightgray", color = "white") + # Base layer of world map
-  geom_sf(data = geo_lakes_flux, aes(color = dataset)) + 
+  geom_sf(data = df_lakes_flux_stream, aes(color = dataset)) + 
   theme_minimal() +
   labs(title = "DOC Lake Data and Flux 2015 dataset",
        x = "Longitude",
        y = "Latitude")
+
+# Lakes and Flux and Streams
+ggplot() +
+  geom_sf(data = world, fill = "lightgray", color = "white") + # Base layer of world map
+  geom_sf(data = df_lakes_flux_stream, aes(color = dataset), size = 0.5) + # Adjust point size here
+  theme_minimal() +
+  labs(title = "DOC Lake Data and Flux 2015 dataset and Stream Pulse",
+       x = "Longitude",
+       y = "Latitude")
+
