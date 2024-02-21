@@ -8,6 +8,7 @@ cat("\014") # Clear console
 
 # Progress ----------------------------------------------------------------
 # First pass on
+# These are the two data sets to merge for stream pulse: all_basic_site_data.csv and all_model_summary_data.csv
 
 # Libraries ---------------------------------------------------------------
 setwd('~/flux/data/')
