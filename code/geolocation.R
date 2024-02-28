@@ -22,7 +22,28 @@ source('~/flux/code/project_functions.R')
 site_info <- read.csv('aquatic/edi.643.5/siteInformation.csv', row.names = NULL)
 lake_data <- read.csv('aquatic/edi.643.5/LakeData.csv', row.names = NULL)
 holgerson_lake_data <- read.csv('aquatic/LakeMetabolismHolgerson.csv', row.names = NULL)
-stream_pulse_sites <- read.csv('aquatic/stream_pulse/all_basic_site_data.csv')
+# stream_pulse_sites <- read.csv('aquatic/stream_pulse/all_basic_site_data.csv', row.names = NULL)
+# Updated locations:
+stream_pulse_sites <- read.csv('aquatic/stream_pulse/all_basic_site_data_location_completed.csv', row.names = NULL)
+
+
+# Stream pulse fix missing lat/long in PR site -----------------------------------------
+stream_pulse_sites[is.na(stream_pulse_sites$latitude), ]
+# Field Site Information (from NEON website)
+# Latitude/Longitude for rio cupeyes (doesn't differentiate between Rio Cupeyes Upstream", "Rio Cupeyes Downstream")
+# 18.11352, -66.98676
+
+# Identify rows where latitude is NA and update them
+na_latitude_rows <- is.na(stream_pulse_sites$latitude)
+stream_pulse_sites$latitude[na_latitude_rows] <- 18.11352
+
+# Identify rows where longitude is NA and update them
+na_longitude_rows <- is.na(stream_pulse_sites$longitude)
+stream_pulse_sites$longitude[na_longitude_rows] <- -66.98676
+
+stream_pulse_sites[is.na(stream_pulse_sites$latitude), ] # All lat/longs filled
+write.csv(stream_pulse_sites, 'aquatic/stream_pulse/all_basic_site_data_location_completed.csv', row.names=F)
+
 # Datasets with DOC -------------------------------------------------------
 doc <- lake_data %>% 
   filter(Variable == 'doc')
@@ -55,7 +76,7 @@ df_terrestrial <- data_terrestrial %>%
   mutate(dataset = 'flux_data')
 geo_flux <- st_as_sf(df_terrestrial, coords = c("longitude", "latitude"), crs = 4326)
 st_write(geo_flux, 'geospatial/georeferenced_flux_2015_dataset.shp')
-# Aquatic and Terrestrial -------------------------------------------------
+# Lakes and Terrestrial -------------------------------------------------
 df_lakes_flux <- rbind(df_terrestrial, df_combined_lakes)
 geo_lakes_flux <- st_as_sf(df_lakes_flux, coords = c("longitude", "latitude"), crs = 4326)
 st_write(geo_lakes_flux, 'geospatial/georeferenced_doc_lakes_williamson_holgerson_flux.shp')
