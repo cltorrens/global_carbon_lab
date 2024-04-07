@@ -4,30 +4,33 @@ cat("\014") # Clear console
 
 # Objective ---------------------------------------------------------------
 # Synthesize datasets geographically
+# IMPORTANT: MARZOLF RIO MARIA SITES DID NOT HAVE LAT LONG, I LOOKED
+# UP THE PAPER BUT IT DIDN'T INCLUDE COORDINATES, MAY BE ABLE TO 
+# FIGURE OUT LATER BUT THEY HAVE BEEN REMOVED FROM THE SHAPEFILE
+# and caribean site only had latitude
 
 
 # Progress ----------------------------------------------------------------
-# First pass on
-# These are the two data sets to merge for stream pulse: all_basic_site_data.csv and all_model_summary_data.csv
-
+# Added marzolf
 # Libraries ---------------------------------------------------------------
 setwd('~/flux/data/')
 library(dplyr)
-# library(tidyr)
+library(tidyr)
 library(sf)
 library(ggplot2)
 source('~/flux/code/project_functions.R')
 
 # Import data -------------------------------------------------------------
-site_info <- read.csv('aquatic/edi.643.5/siteInformation.csv', row.names = NULL)
-lake_data <- read.csv('aquatic/edi.643.5/LakeData.csv', row.names = NULL)
+williamson_site_info <- read.csv('aquatic/edi.643.5/siteInformation.csv', row.names = NULL)
+williamson_lake_data <- read.csv('aquatic/edi.643.5/LakeData.csv', row.names = NULL)
 holgerson_lake_data <- read.csv('aquatic/LakeMetabolismHolgerson.csv', row.names = NULL)
 # stream_pulse_sites <- read.csv('aquatic/stream_pulse/all_basic_site_data.csv', row.names = NULL)
 # Updated locations:
 stream_pulse_sites <- read.csv('aquatic/stream_pulse/all_basic_site_data_location_completed.csv', row.names = NULL)
-
+marzolf_streams <- read.csv('aquatic/marzolf_data.csv', row.names = NULL)
 
 # Stream pulse fix missing lat/long in PR site -----------------------------------------
+# Only run this the first time
 stream_pulse_sites[is.na(stream_pulse_sites$latitude), ]
 # Field Site Information (from NEON website)
 # Latitude/Longitude for rio cupeyes (doesn't differentiate between Rio Cupeyes Upstream", "Rio Cupeyes Downstream")
@@ -50,21 +53,48 @@ doc <- lake_data %>%
 doc_lakes <- semi_join(site_info, doc, by = "SiteID") # captures only SiteID's that match with doc
 names(doc_lakes) <- c('site_ID', 'site_name', 'latitude', 'longitude', 'elevation', 'country', 'state') # I can't deal with capital letters
 
+
+# Marzolf -----------------------------------------------------------------
+df_converted <- as.data.frame(lapply(marzolf_streams, as.character), stringsAsFactors = FALSE)
+new_marzolf <- df_converted[1,] %>% 
+  pivot_longer(cols = 1:41) %>% 
+  mutate(across(everything(), ~if_else(. == "" | is.na(.), NA_character_, .)))
+write.csv(new_marzolf, 'aquatic/marzolf_variables_units.csv')
+
+df_marzolf_streams <- marzolf_streams[2:203,] %>% 
+  rename(latitude = Latitude, longitude=Longitude) %>% 
+  filter(!is.na(latitude)) %>% # removes rio maria panama 2 observations
+  filter(!is.na(longitude)) # 21 other observations removed from the carribean site
+  
+shp_marzolf_streams <- st_as_sf(df_marzolf_streams, coords = c("longitude", "latitude"), crs = 4326)
+st_write(shp_marzolf_streams, 'geospatial/marzolf_streams_panama_carribean_data_removed.shp')
+df_marzolf_locations_only <- df_marzolf_streams %>% 
+  select(latitude, longitude) %>% 
+  distinct(latitude, longitude) %>% 
+  mutate(dataset = 'marzolf')
+shp_marzolf_locations_only <- st_as_sf(df_marzolf_locations_only, coords = c("longitude", "latitude"), crs = 4326)
+
+# Holgerson ---------------------------------------------------------------
+shp_holgerson <- st_as_sf(holgerson_lake_data, coords = c("longitude", "latitude"), crs = 4326)
+st_write(shp_holgerson, 'geospatial/holgerson.shp')
+# Combined datasets -------------------------------------------------------
+
+
 # Select lat/long coordinates for each location and label them by dataset
 lat_long_holg <- holgerson_lake_data %>%
   select(latitude, longitude) %>% 
-  distinct(latitude, longitude)%>%  # excludes multiple observations at one location (creates only one data point for mapping)
+  distinct(latitude, longitude)%>%  # excludes multiple observations at one location 
   mutate(dataset = 'holgerson')
 lat_long_doc_lakes <- doc_lakes %>% 
   select(latitude, longitude) %>% 
-  distinct(latitude, longitude) %>% # excludes multiple observations at one location (creates only one data point for mapping)
+  distinct(latitude, longitude) %>% 
   mutate(dataset = 'lakes_1') # Non-holgerson lakes dataset
 df_combined_lakes <- rbind(lat_long_holg, lat_long_doc_lakes) # Each coordinate will correspond to the dataset it was derived from
 
 
 # Transform data frame into georeferenced point data -----------------------
-geo_lakes <- st_as_sf(df_combined_lakes, coords = c("longitude", "latitude"), crs = 4326) # crs projection set to lat long
-st_write(geo_lakes, 'geospatial/georeferenced_doc_lakes_williamson_holgerson.shp') # Write shapefile of points
+geo_lakes <- st_as_sf(df_combined_lakes, coords = c("longitude", "latitude"), crs = 4326) 
+st_write(geo_lakes, 'geospatial/georeferenced_doc_lakes_williamson_holgerson.shp') 
 
 
 # Flux data ---------------------------------------------------------------
@@ -90,12 +120,26 @@ df_stream_pulse <- stream_pulse_sites %>%
   filter(!is.na(latitude))
 
 geo_stream <- st_as_sf(df_stream_pulse, coords = c("longitude", "latitude"), crs = 4326)
-df_lakes_flux_stream <- rbind(geo_lakes_flux, geo_stream)
+# I should have named these "df's" to geo, sort of confusing since they do not contain data only points
+df_lakes_flux_stream <- rbind(geo_lakes_flux, geo_stream) 
 st_write(df_lakes_flux_stream, 'geospatial/georeferenced_doc_lakes_williamson_holgerson_flux_stream_pulse.shp')
+df_lakes_flux_stream <- st_read('geospatial/georeferenced_doc_lakes_williamson_holgerson_flux_stream_pulse.shp')
 
+# Combined with Marzolf ---------------------------------------------------
+geo_lakes_flux_stream_marzolf <- rbind(df_lakes_flux_stream, shp_marzolf_locations_only)
+st_write(geo_lakes_flux_stream_marzolf, 'geospatial/geo_lakes_flux_stream_pulse_marzolf.shp')
 # Maps --------------------------------------------------------------------
 library(rnaturalearth)
 world <- ne_countries(scale = "medium", returnclass = "sf") # World basemap
+
+# Lakes data, stream pulse, holgerson, Marzolf
+ggplot() +
+  geom_sf(data = world, fill = "lightgray", color = "white") + 
+  geom_sf(data = geo_lakes_flux_stream_marzolf, aes(color = dataset), size = 0.5) + 
+  labs(title = "Lakes data, stream pulse, holgerson, Marzolf",
+       x = "Longitude",
+       y = "Latitude")
+
 # Aquatic only
 ggplot() +
   geom_sf(data = world, fill = "lightgray", color = "white") + # Base layer of world map
@@ -107,7 +151,7 @@ ggplot() +
 
 # Flux only
 ggplot() +
-  geom_sf(data = world, fill = "lightgray", color = "white") + # Base layer of world map
+  geom_sf(data = world, fill = "lightgray", color = "white") + 
   geom_sf(data = geo_flux, aes(color = dataset)) + 
   theme_minimal() +
   labs(title = "Flux Sites",
@@ -116,7 +160,7 @@ ggplot() +
 
 # Lakes and Flux
 ggplot() +
-  geom_sf(data = world, fill = "lightgray", color = "white") + # Base layer of world map
+  geom_sf(data = world, fill = "lightgray", color = "white") + 
   geom_sf(data = df_lakes_flux_stream, aes(color = dataset)) + 
   theme_minimal() +
   labs(title = "DOC Lake Data and Flux 2015 dataset",
@@ -125,9 +169,8 @@ ggplot() +
 
 # Lakes and Flux and Streams
 ggplot() +
-  geom_sf(data = world, fill = "lightgray", color = "white") + # Base layer of world map
-  geom_sf(data = df_lakes_flux_stream, aes(color = dataset), size = 0.5) + # Adjust point size here
-  theme_minimal() +
+  geom_sf(data = world, fill = "lightgray", color = "white") + 
+  geom_sf(data = df_lakes_flux_stream, aes(color = dataset), size = 0.5) + 
   labs(title = "DOC Lake Data and Flux 2015 dataset and Stream Pulse",
        x = "Longitude",
        y = "Latitude")
