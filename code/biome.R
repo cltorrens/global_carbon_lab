@@ -69,3 +69,20 @@ df <- df %>%
   mutate(land_cover_type = land_cover_types[as.character(biome)])
 
 st_write(df, 'geospatial/sites_by_biomes_with_marzolf_with_biome_label.shp')
+df <- st_read('geospatial/sites_by_biomes_with_marzolf_with_biome_label.shp')
+
+
+df_biomes <- data.frame(
+  biome = df$biome,
+  dataset = df$dataset,
+  number_of_sites = df$number_of_sites,
+  land_cover_type = df$land_cover_type)
+
+write.csv(df_biomes, 'geospatial/sites_by_biomes_with_marzolf_with_biome_label.csv', row.names = F)
+df_biomes <- read.csv('geospatial/sites_by_biomes_with_marzolf_with_biome_label.csv', row.names = NULL)
+biomes_summary <- df_biomes %>% 
+  group_by(land_cover_type) %>% 
+  summarise(number_of_sites = sum(number_of_sites))
+prop.table(biomes_summary, )
+biomes_summary$percent_of_total <- prop.table(biomes_summary$number_of_sites) * 100
+write.csv(biomes_summary, 'geospatial/sites_by_biomes_with_marzolf_with_biomes_summary.csv')
