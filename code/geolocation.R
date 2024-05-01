@@ -4,6 +4,9 @@ cat("\014") # Clear console
 
 # Objective ---------------------------------------------------------------
 # Synthesize datasets geographically
+# Note: the Williamson dataset is just DOC 
+# This needs to be cleaned up a bit.
+
 # IMPORTANT: MARZOLF RIO MARIA SITES DID NOT HAVE LAT LONG, I LOOKED
 # UP THE PAPER BUT IT DIDN'T INCLUDE COORDINATES, MAY BE ABLE TO 
 # FIGURE OUT LATER BUT THEY HAVE BEEN REMOVED FROM THE SHAPEFILE
@@ -11,7 +14,7 @@ cat("\014") # Clear console
 
 
 # Progress ----------------------------------------------------------------
-# Added marzolf
+# Added map for metabolism only
 # Libraries ---------------------------------------------------------------
 setwd('~/flux/data/')
 library(dplyr)
@@ -28,6 +31,7 @@ holgerson_lake_data <- read.csv('aquatic/LakeMetabolismHolgerson.csv', row.names
 # Updated locations:
 stream_pulse_sites <- read.csv('aquatic/stream_pulse/all_basic_site_data_location_completed.csv', row.names = NULL)
 marzolf_streams <- read.csv('aquatic/marzolf_data.csv', row.names = NULL)
+data_terrestrial <- read.table("terrestrial/Fluxnet2015globalagesub.txt", header = TRUE, sep = "\t")
 
 # Stream pulse fix missing lat/long in PR site -----------------------------------------
 # Only run this the first time
@@ -64,27 +68,32 @@ write.csv(new_marzolf, 'aquatic/marzolf_variables_units.csv')
 df_marzolf_streams <- marzolf_streams[2:203,] %>% 
   rename(latitude = Latitude, longitude=Longitude) %>% 
   filter(!is.na(latitude)) %>% # removes rio maria panama 2 observations
-  filter(!is.na(longitude)) # 21 other observations removed from the carribean site
+  filter(!is.na(longitude))  # 21 other observations removed from the carribean site
   
 shp_marzolf_streams <- st_as_sf(df_marzolf_streams, coords = c("longitude", "latitude"), crs = 4326)
 st_write(shp_marzolf_streams, 'geospatial/marzolf_streams_panama_carribean_data_removed.shp')
 df_marzolf_locations_only <- df_marzolf_streams %>% 
   select(latitude, longitude) %>% 
   distinct(latitude, longitude) %>% 
-  mutate(dataset = 'marzolf')
+  mutate(dataset = 'marzolf') %>% 
+  mutate(type = 'Streams')
 shp_marzolf_locations_only <- st_as_sf(df_marzolf_locations_only, coords = c("longitude", "latitude"), crs = 4326)
 
 # Holgerson ---------------------------------------------------------------
 shp_holgerson <- st_as_sf(holgerson_lake_data, coords = c("longitude", "latitude"), crs = 4326)
 st_write(shp_holgerson, 'geospatial/holgerson.shp')
 # Combined datasets -------------------------------------------------------
-
-
 # Select lat/long coordinates for each location and label them by dataset
 lat_long_holg <- holgerson_lake_data %>%
   select(latitude, longitude) %>% 
   distinct(latitude, longitude)%>%  # excludes multiple observations at one location 
   mutate(dataset = 'holgerson')
+df_holgerson <- holgerson_lake_data %>%
+  select(latitude, longitude) %>% 
+  distinct(latitude, longitude)%>%  # excludes multiple observations at one location 
+  mutate(dataset = 'holgerson') %>% 
+  mutate(type = 'Lakes')
+  
 lat_long_doc_lakes <- doc_lakes %>% 
   select(latitude, longitude) %>% 
   distinct(latitude, longitude) %>% 
@@ -103,7 +112,8 @@ df_terrestrial <- data_terrestrial %>%
   rename(latitude = LOCATION_LAT, longitude=LOCATION_LONG)%>% 
   select(latitude, longitude) %>% 
   distinct(latitude, longitude) %>% 
-  mutate(dataset = 'flux_data')
+  mutate(dataset = 'flux_data') %>% 
+  mutate(type = 'Terrestrial')
 geo_flux <- st_as_sf(df_terrestrial, coords = c("longitude", "latitude"), crs = 4326)
 st_write(geo_flux, 'geospatial/georeferenced_flux_2015_dataset.shp')
 # Lakes and Terrestrial -------------------------------------------------
@@ -117,6 +127,7 @@ df_stream_pulse <- stream_pulse_sites %>%
   select(latitude, longitude) %>% 
   distinct(latitude, longitude) %>% 
   mutate(dataset = 'stream_pulse') %>% 
+  mutate(type = 'Streams') %>% 
   filter(!is.na(latitude))
 
 geo_stream <- st_as_sf(df_stream_pulse, coords = c("longitude", "latitude"), crs = 4326)
@@ -128,6 +139,13 @@ df_lakes_flux_stream <- st_read('geospatial/georeferenced_doc_lakes_williamson_h
 # Combined with Marzolf ---------------------------------------------------
 geo_lakes_flux_stream_marzolf <- rbind(df_lakes_flux_stream, shp_marzolf_locations_only)
 st_write(geo_lakes_flux_stream_marzolf, 'geospatial/geo_lakes_flux_stream_pulse_marzolf.shp')
+
+
+# Holgerson, Stream pulse, Flux, Marzolf ----------------------------------
+metabolism_lakes_streams_terrestrial <- rbind(df_holgerson, df_stream_pulse, df_terrestrial, df_marzolf_locations_only)
+geo_metabolism_lakes_streams_terrestrial <- st_as_sf(metabolism_lakes_streams_terrestrial, coords = c("longitude", "latitude"), crs = 4326)
+st_write(geo_metabolism_lakes_streams_terrestrial, 'geospatial/geo_metabolism_lakes_streams_terrestrial.shp')
+
 # Maps --------------------------------------------------------------------
 library(rnaturalearth)
 world <- ne_countries(scale = "medium", returnclass = "sf") # World basemap
@@ -174,4 +192,21 @@ ggplot() +
   labs(title = "DOC Lake Data and Flux 2015 dataset and Stream Pulse",
        x = "Longitude",
        y = "Latitude")
+
+
+# Metabolism --------------------------------------------------------------
+# Does not include Williamsons data
+geo_metabolism_lakes_streams_terrestrial$type <- factor(geo_metabolism_lakes_streams_terrestrial$type,levels = c('Streams', 'Lakes', 'Terrestrial'))
+c_palette <- c("#0072B2",  "#CC79A7", "#009E73")
+ggplot() +
+  geom_sf(data = world, fill = "white", color = "black") + 
+  geom_sf(data = geo_metabolism_lakes_streams_terrestrial, aes(color = type), 
+          size = 0.75) + 
+  scale_color_manual(values = c_palette) + 
+  labs(x = "Longitude",
+       y = "Latitude")+
+  theme_minimal()+
+  theme(axis.text = element_text(size=18),
+        legend.text = element_text(size = 12),
+        legend.title = element_blank())
 
