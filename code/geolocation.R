@@ -114,6 +114,7 @@ df_terrestrial <- data_terrestrial %>%
   distinct(latitude, longitude) %>% 
   mutate(dataset = 'flux_data') %>% 
   mutate(type = 'Terrestrial')
+write.csv(df_terrestrial, 'terrestrial/fluxnet_2015_locations.csv', row.names = F)
 geo_flux <- st_as_sf(df_terrestrial, coords = c("longitude", "latitude"), crs = 4326)
 st_write(geo_flux, 'geospatial/georeferenced_flux_2015_dataset.shp')
 # Lakes and Terrestrial -------------------------------------------------
