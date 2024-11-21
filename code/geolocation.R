@@ -7,20 +7,15 @@ cat("\014") # Clear console
 # Note: the Williamson dataset is just DOC 
 # This needs to be cleaned up a bit.
 
-# IMPORTANT: MARZOLF RIO MARIA SITES DID NOT HAVE LAT LONG, I LOOKED
-# UP THE PAPER BUT IT DIDN'T INCLUDE COORDINATES, MAY BE ABLE TO 
-# FIGURE OUT LATER BUT THEY HAVE BEEN REMOVED FROM THE SHAPEFILE
-# and caribean site only had latitude
-
-
 # Progress ----------------------------------------------------------------
-# Added map for metabolism only
+# Added new flux data and new map. This code is a mess.
 # Libraries ---------------------------------------------------------------
 setwd('~/flux/data/')
 library(dplyr)
 library(tidyr)
 library(sf)
 library(ggplot2)
+library(readxl)
 source('~/flux/code/project_functions.R')
 
 # Import data -------------------------------------------------------------
@@ -32,7 +27,7 @@ holgerson_lake_data <- read.csv('aquatic/LakeMetabolismHolgerson.csv', row.names
 stream_pulse_sites <- read.csv('aquatic/stream_pulse/all_basic_site_data_location_completed.csv', row.names = NULL)
 marzolf_streams <- read.csv('aquatic/marzolf_data.csv', row.names = NULL)
 data_terrestrial <- read.table("terrestrial/Fluxnet2015globalagesub.txt", header = TRUE, sep = "\t")
-
+data_terrestrial_2 <- read_excel('terrestrial/yr_site_FLUXNET2015.xlsx', sheet = 1)
 # Stream pulse fix missing lat/long in PR site -----------------------------------------
 # Only run this the first time
 stream_pulse_sites[is.na(stream_pulse_sites$latitude), ]
@@ -78,7 +73,7 @@ df_marzolf_locations_only <- df_marzolf_streams %>%
   mutate(dataset = 'marzolf') %>% 
   mutate(type = 'Streams')
 shp_marzolf_locations_only <- st_as_sf(df_marzolf_locations_only, coords = c("longitude", "latitude"), crs = 4326)
-
+write.csv(df_marzolf_locations_only, 'aquatic/marzolf_locations_only.csv', row.names = F)
 # Holgerson ---------------------------------------------------------------
 shp_holgerson <- st_as_sf(holgerson_lake_data, coords = c("longitude", "latitude"), crs = 4326)
 st_write(shp_holgerson, 'geospatial/holgerson.shp')
@@ -93,7 +88,7 @@ df_holgerson <- holgerson_lake_data %>%
   distinct(latitude, longitude)%>%  # excludes multiple observations at one location 
   mutate(dataset = 'holgerson') %>% 
   mutate(type = 'Lakes')
-  
+write.csv(df_holgerson, 'aquatic/holgerson.csv', row.names=F)  
 lat_long_doc_lakes <- doc_lakes %>% 
   select(latitude, longitude) %>% 
   distinct(latitude, longitude) %>% 
@@ -117,6 +112,16 @@ df_terrestrial <- data_terrestrial %>%
 write.csv(df_terrestrial, 'terrestrial/fluxnet_2015_locations.csv', row.names = F)
 geo_flux <- st_as_sf(df_terrestrial, coords = c("longitude", "latitude"), crs = 4326)
 st_write(geo_flux, 'geospatial/georeferenced_flux_2015_dataset.shp')
+
+# Updated flux data -------------------------------------------------------
+data_terrestrial_2 <- read_excel('terrestrial/yr_site_FLUXNET2015.xlsx', sheet = 1)
+df_2_terrestrial <- data_terrestrial_2 %>% 
+  rename(latitude = LAT, longitude=LON) %>% 
+  # distinct(latitude, longitude) %>% # There are two sites that overlap
+  mutate(dataset = 'flux_data') %>% 
+  mutate(type = 'Terrestrial') %>% 
+  select(latitude,longitude, dataset, type)
+write.csv(df_2_terrestrial, 'terrestrial/flux_sites_updated.csv', row.names=F)  
 # Lakes and Terrestrial -------------------------------------------------
 df_lakes_flux <- rbind(df_terrestrial, df_combined_lakes)
 geo_lakes_flux <- st_as_sf(df_lakes_flux, coords = c("longitude", "latitude"), crs = 4326)
@@ -130,7 +135,7 @@ df_stream_pulse <- stream_pulse_sites %>%
   mutate(dataset = 'stream_pulse') %>% 
   mutate(type = 'Streams') %>% 
   filter(!is.na(latitude))
-
+write.csv(df_stream_pulse, 'aquatic/stream_pulse.csv', row.names = F)
 geo_stream <- st_as_sf(df_stream_pulse, coords = c("longitude", "latitude"), crs = 4326)
 # I should have named these "df's" to geo, sort of confusing since they do not contain data only points
 df_lakes_flux_stream <- rbind(geo_lakes_flux, geo_stream) 
@@ -143,9 +148,11 @@ st_write(geo_lakes_flux_stream_marzolf, 'geospatial/geo_lakes_flux_stream_pulse_
 
 
 # Holgerson, Stream pulse, Flux, Marzolf ----------------------------------
-metabolism_lakes_streams_terrestrial <- rbind(df_holgerson, df_stream_pulse, df_terrestrial, df_marzolf_locations_only)
+# metabolism_lakes_streams_terrestrial <- rbind(df_holgerson, df_stream_pulse, df_terrestrial, df_marzolf_locations_only)
+metabolism_lakes_streams_terrestrial <- rbind(df_holgerson, df_stream_pulse, df_2_terrestrial, df_marzolf_locations_only)
 geo_metabolism_lakes_streams_terrestrial <- st_as_sf(metabolism_lakes_streams_terrestrial, coords = c("longitude", "latitude"), crs = 4326)
-st_write(geo_metabolism_lakes_streams_terrestrial, 'geospatial/geo_metabolism_lakes_streams_terrestrial.shp')
+# st_write(geo_metabolism_lakes_streams_terrestrial, 'geospatial/geo_metabolism_lakes_streams_terrestrial.shp')
+st_write(geo_metabolism_lakes_streams_terrestrial, 'geospatial/geo_metabolism_lakes_streams_terrestrial_updated.shp')
 
 # Maps --------------------------------------------------------------------
 library(rnaturalearth)
@@ -211,3 +218,26 @@ ggplot() +
         legend.text = element_text(size = 12),
         legend.title = element_blank())
 
+# Updated for efficiency --------------------------------------------------
+# Imports
+df_holgerson <- read.csv('aquatic/holgerson.csv', row.names=NULL)
+df_stream_pulse <- read.csv('aquatic/stream_pulse.csv', row.names = NULL)
+df_marzolf_locations_only <- read.csv('aquatic/marzolf_locations_only.csv', row.names=NULL)
+df_2_terrestrial <- read.csv('terrestrial/flux_sites_updated.csv', row.names = NULL)
+combined_df <- rbind(df_holgerson, df_stream_pulse, df_marzolf_locations_only,df_2_terrestrial)
+geo_all <- st_as_sf(combined_df, coords = c("longitude", "latitude"), crs = 4326)
+st_write(geo_all, 'geospatial/updated_flux_global_no_williamson.shp')
+library(rnaturalearth)
+world <- ne_countries(scale = "medium", returnclass = "sf") # World basemap
+c_palette <- c("#0072B2",  "#CC79A7", "#009E73")
+ggplot() +
+  geom_sf(data = world, fill = "white", color = "black") + 
+  geom_sf(data = geo_all, aes(color = type), 
+          size = 0.75) + 
+  scale_color_manual(values = c_palette) + 
+  labs(x = "Longitude",
+       y = "Latitude")+
+  theme_minimal()+
+  theme(axis.text = element_text(size=18),
+        legend.text = element_text(size = 12),
+        legend.title = element_blank())
