@@ -72,4 +72,8 @@ p <- ggplot() +
        x = "Longitude", y = "Latitude")
 p
 
-# Add monthly then mean annual
+
+# Summed ------------------------------------------------------------------
+NAvalue(nee_inversion) <- 0
+nee_inversion_sum <- calc(nee_inversion, fun = sum, na.rm = TRUE)
+writeRaster(nee_inversion_sum, 'terrestrial/nee_inversion_sum.tif')
