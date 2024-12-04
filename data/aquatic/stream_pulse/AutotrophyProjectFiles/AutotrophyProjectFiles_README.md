@@ -24,6 +24,7 @@ https://link.springer.com/article/10.1007/s10021-024-00933-w
 <!-- Working data -->
 ### Working datasets
 **1. across_sites_model_data.csv**  -  summary data from all site years with a minimum of 60% annual coverage with high quality days (see above). Summary metabolism values are calculated from gap-filled data using the workflow from [Bernhardt et al 2022](https://www.pnas.org/doi/abs/10.1073/pnas.2121976119). Watershed data from NHD and streamcat are also included; .  NB: K600 values not incuded; see "high_quality_daily_metabolism_with_SP_covariates.rds"  (Supplemental Data #1) for **daily** K600 values, would need to calculate summary values.
+**2. StreamPulse_monthly_K.csv** - summary K600 data from all site years with a minimum of 60% annual coverage with high quality days (see above). Summary K600 values are the na-removed averages of each month's daily data. 
 
 
 <!-- Supplemental Data (356 Rivers) -->
