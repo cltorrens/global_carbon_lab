@@ -1,5 +1,5 @@
-##### The purpose of this script is to get monthly K values from the Bernhart 
-#     'high_quality_daily_metabolism_with_SP_covariates.rds" dataset
+##### The purpose of this script is to get monthly K values from the Bernhardt 
+#     "high_quality_daily_metabolism_with_SP_covariates.rds" dataset
 #
 # Author: Christa Torrens
 # Date: 02 December 2024
