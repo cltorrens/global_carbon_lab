@@ -6,9 +6,14 @@ output:
 date: "2024-11-06"
 ---
 
-Matt Nichols wrote the original code to merge the StreamPulse GPP dataset with the Liu et al. dataset. It looks like he added an index to both files (COMID)? 
+## Intro info
+Matt Nichols wrote the original code to merge the StreamPulse GPP dataset with the Liu et al. dataset. It looks like he may have added an index to one or both files (COMID)? 
 
-Christa Torrens amended to add packages and to make the read-data paths match the current folder structure, using the 'here' package. BUT a couple of the the files don't exist in GitHub nor on teh group Drive folder (‘co2f.csv’ and ‘k.csv’); and we're still missing the method for creating streampulse_liu_merge (uploaded in this script) and the two missing files.  Asking Matt for the files and info 5/2/25 (he's defending soon, so TBD when he'll be able to share)
+Christa Torrens amended to add packages and to make the read-data paths match the current folder structure, using the 'here' package. BUT we're still missing the method for creating streampulse_liu_merge (uploaded in this script), and the files that were used for that merge.  Asking Matt for the files and info 5/2/25 (he's defending soon, so TBD when he'll be able to share)
+
+NB: to run this code, you will need a couple of Liu et al. files, "co2f.csv" and "k.csv", that are too large to track with GitHub; instead, download them from the group's Google Drive folder/ Liu_data_DL and add them to your gitignore folder. You can also download them  yourself from DataDryad: https://datadryad.org/dataset/doi:10.5061/dryad.d7wm37pz9
+
+
 
 ```{r}
 
