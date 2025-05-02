@@ -1,0 +1,16 @@
+MethodID,MethodDetails
+Method002,Temperature and dissolved oxygen measured in situ using a YSI temperature/ dissolved oxygen meter (membrane sensor)
+Method010,Step 1: Extracted in 90% acetone:methanol (5:1); Step 2: Sample frozen for 48 hours; Step 3: Sample NOT ground; Step 4: Sample was heated; Step 5: Sample measured on a fluorometer
+Method108,Step 1: Filter 50mL DI water through ashed 0.7um GFF filter; Step 2: Discard filtrate; Step 3: Filter 15mL sample water; Step 4: Discard filtrate; Step 5: Filter 100mL sample water; Step 6: Rinse and fill sample bottles; Step 7: Run samples on Shimadzu TOC analyzer
+Method112,Step 1: Acidify sample to pH<2 using H2SO4; Step 2: Digest sample with potassium persulfate; Step 3: Measure phosphorus concentration using the molybdate blue method (on Lachat autoanalyzer)
+Method121,Step 1: Measurement taken with a BIC-2104P-1011; Step 2: Value derived by calculations post-processing
+Method122,Step 1: Measurement taken with a BIC-2104P-1036; Step 2: Value derived by calculations post-processing
+Method123,Step 1: Measurement taken with a BIC-2104P-1057; Step 2: Value derived by calculations post-processing
+Method124,Step 1: Measurement taken with a BIC-2104P-1091; Step 2: Value derived by calculations post-processing
+Method125,Step 1: Measurement taken with a BIC-2104P-1092; Step 2: Value derived by calculations post-processing
+Method126,Step 1: Measurement taken with a PUV500; Step 2: Value derived by calculations post-processing
+Method127,Step 1: Measurement taken with a PUV500-9212; Step 2: Value derived by calculations post-processing
+Method129,Step 1: Measurement taken with a PUV501B-19205; Step 2: Value derived by calculations post-processing
+Method139,Value derived by calculations post-processing
+Method151,Step 1: Filter 50mL DI water through ashed 0.7um GFF filter; Step 2: Discard filtrate; Step 3: Filter 15mL sample water; Step 4: Discard filtrate; Step 5: Filter 100mL sample water; Step 6: Rinse and fill sample bottles; Step 7: Run samples on Shimadzu UV-VIS 1650 Spectrophotometer; Step 8: Value derived post-processing using calculations in R (in which only a DI blank was subtracted)
+Method159,Step 1: Acidify filtrate to pH<2 using H2SO4; Step 2: Digest sample with potassium persulfate; Step 3: Measure phosphorus concentration using the molybdate blue method (on Lachat autoanalyzer); Step 4: ultralow method (1-100 ug/L P)

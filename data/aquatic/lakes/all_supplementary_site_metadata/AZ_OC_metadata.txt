@@ -1,0 +1,65 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+--- Data status codes ---
+
+Data level codes:
+	R: Raw (directly from sensor/logger)
+	O: Outliers/anomalies removed
+	G: Gaps imputed
+	C: Corrected for drift (due to biofouling, calibration, etc.)
+	D: Derived from other variables
+	-: No information
+
+--- Data status by variable ---
+
+         Variable StatusCodes VariableDerivation
+1       AirTemp_C           R                  -
+2      Light2_lux           R                  -
+3       AirTemp_C           R                  -
+4      Light5_lux           R                  -
+5       AirTemp_C           R                  -
+6      Light3_lux           R                  -
+7       AirTemp_C           R                  -
+8      Light4_lux           R                  -
+9       AirTemp_C           R                  -
+10      Light_lux           R                  -
+11    AirPres_kPa           R                  -
+12       CDOM_ppb           R                  -
+13        Depth_m           R                  -
+14      DOsat_pct           R                  -
+15         DO_mgL           R                  -
+17  SpecCond_uScm           R                  -
+18      AirTemp_C           R                  -
+19  Turbidity_NTU           R                  -
+20             pH           R                  -
+21          pH_mV           -                  -
