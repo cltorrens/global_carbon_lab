@@ -1,0 +1,51 @@
+---
+title: "Merge datasets: StreamPulse, Liu, and more"
+output:
+  pdf_document: default
+  html_document: default
+date: "2024-11-06"
+---
+
+Matt Nichols wrote the original code to merge the StreamPulse GPP dataset with the Liu et al. dataset. It looks like he added an index to both files (COMID)? 
+
+Christa Torrens amended to add packages and to make the read-data paths match the current folder structure, using the 'here' package. BUT a couple of the the files don't exist in GitHub nor on teh group Drive folder (‘co2f.csv’ and ‘k.csv’); and we're still missing the method for creating streampulse_liu_merge (uploaded in this script) and the two missing files.  Asking Matt for the files and info 5/2/25 (he's defending soon, so TBD when he'll be able to share)
+
+```{r}
+
+library(tidyverse)
+library(here)
+
+```
+
+
+```{r}
+#upload datasets
+
+setwd()
+
+streamPulse <- read.csv(here("data/aquatic/stream_pulse/20210902_streampulse_synthesis_statset.csv"), header = TRUE, sep = ",")
+
+liu_co2 <- read.csv(here("data/terrestrial/co2f.csv"), header = TRUE, sep = ",")
+
+#merge datasets based on COMID column
+
+stream_merge <- merge(streamPulse, liu_co2, by = "COMID")
+
+```
+
+```{r}
+#upload and add the Lui et al and streamPulse dataset
+
+streampulse_liu_co2 <- read.csv(here("data/aquatic/streams/streampulse_liu_merge.csv"), header = TRUE, sep = ",")
+
+k <- read.csv(here("k.csv"), header = TRUE, sep = ",")  ## PATH? 
+
+```
+
+```{r}
+streamP_Liu_CO2 <- merge(streampulse_liu_co2, k, by = "COMID")
+
+write_csv(streamP_Liu_CO2, file=here("data/aquatic/streams/MERGEDstreamPulse_Liu.csv"))
+```
+
+

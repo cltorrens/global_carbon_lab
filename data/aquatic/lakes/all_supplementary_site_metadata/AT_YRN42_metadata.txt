@@ -1,0 +1,7 @@
+DO and water temperature data was collected by AJ Ulseth (Tom Battin) using HOBO DO loggers at 5-min intervals. DO loggers were downloaded and maintained monthly and corrected for potential drift by 'bubbling' the sondes with 100% saturated water stream-side before and after each download/maintenance round.
+Air pressure was collected at the weather station in the centre of the Ybbs River Network (YRN), and then corrected for elevation at each site.
+DOsat was calculated based on site specific barometric pressure and water temp with equations from Garcia and Gordon 1992 L&O.
+Light (lux) was collected using HOBO light and temperature pendants deployed stream-side.
+Depth was calculated based on scaling relationships specific for the YRN (Ceola et al. 2014).
+Discharge was calculated from downstream gauges and corrected for catchment size.
+This oxygen and associated data was used to estimate GPP and ER as published in Ulseth et al. Ecosystems 2018.

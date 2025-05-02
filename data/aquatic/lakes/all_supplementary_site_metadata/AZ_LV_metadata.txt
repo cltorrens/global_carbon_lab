@@ -1,0 +1,46 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+--- Data status codes ---
+
+Data level codes:
+	R: Raw (directly from sensor/logger)
+	O: Outliers/anomalies removed
+	G: Gaps imputed
+	C: Corrected for drift (due to biofouling, calibration, etc.)
+	D: Derived from other variables
+	-: No information
+
+--- Data status by variable ---
+
+         Variable StatusCodes VariableDerivation
+1     WaterTemp_C           R                  -
+2              pH           R                  -
+3         Depth_m           R                  -
+4   SpecCond_uScm           R                  -
+5   Turbidity_NTU           R                  -
+6          DO_mgL           R                  -
+7        CDOM_ppb           R                  -
+8       DOsat_pct           R                  -
+9     AirPres_kPa           R                  -
+11  Turbidity_FNU           -                  -
+12    Nitrate_mgL           R                  -
+13       CDOM_ppb           R                  -
+14          pH_mV           R                  -

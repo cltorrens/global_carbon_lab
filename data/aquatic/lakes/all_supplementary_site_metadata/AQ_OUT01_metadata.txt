@@ -1,0 +1,22 @@
+
+
+--- Data status codes ---
+
+Data level codes:
+	R: Raw (directly from sensor/logger)
+	O: Outliers/anomalies removed
+	G: Gaps imputed
+	C: Corrected for drift (due to biofouling, calibration, etc.)
+	D: Derived from other variables
+	-: No information
+
+--- Data status by variable ---
+
+        Variable StatusCodes VariableDerivation
+1             pH           -                  -
+2  SpecCond_mScm           -                  -
+3    WaterTemp_C           -                  -
+4  Turbidity_NTU           -                  -
+5       CDOM_ppb           -                  -
+6         DO_mgL           -                  -
+7      AirTemp_C           -                  -
