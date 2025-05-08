@@ -7,6 +7,7 @@ date: "2024-11-06"
 ---
 
 ## Intro info
+
 Matt Nichols wrote the original code to merge the StreamPulse GPP dataset with the Liu et al. dataset. He had *already* used the Liu et al. geotiffs (and ArcGIS?) to merge some data by the StreamPulse lat longs, to create the here(data/aquatic/streams/streampulse_liu_merge.csv') file. This script merges the streampulse_liu_merge.csv file with two other files from Liu et al.: co2f.csv and k.csv, both in the here(data/Liu_data_DL_v20210902) folder**. Apparently all the Liu files have COMID as a shared reference category. 
 
 Christa Torrens amended the script to add this information, packages, and to make the read-data paths match the current folder structure, using the 'here' package.  We're still missing some details on the methods for creating streampulse_liu_merge (uploaded in this script), and the files that were used for that merge.  Asking Matt for the files and info 5/2/25 (he's defending soon, so TBD when he'll be able to share)
