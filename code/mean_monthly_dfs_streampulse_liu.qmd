@@ -9,6 +9,8 @@ editor: visual
 
 The purpose of this script is to get mean monthly values for GPP, ER, NEP and K from the Bernhardt et al. 2018 dataset, "high_quality_daily_metabolism_with_SP_covariates.rds", AND to combine the three Liu et al. datasets into one long version df to match the monthly streampulse df format, where month (containing values 1-12 repeating), pco2, k, and co2f are columns.
 
+NOTE that the liu_monthly.csv is 2.1 GB, much too large to push to GitHub, so must be downloaded from the Global Carbon google drive (Streams/monthly_datasets folder). https://drive.google.com/drive/folders/1Q2BfLu7UVZgVzcuugHhKcVHC-8mBQKU0
+
 ### Load packages
 
 ```{r packages}
@@ -37,8 +39,15 @@ ws_df <- read_csv(here("data/aquatic/streams/AutotrophyProjectFiles/across_sites
 
 # using these dfs to check for 2 missing ws_df sites:
 streampulse_synthesis_statset <- read_csv(here("data/aquatic/streams/AutotrophyProjectFiles/20210902_streampulse_synthesis_statset.csv"))
+
 all_basic_site_data <- read_csv(here("data/aquatic/streams/stream_pulse_DL/all_basic_site_data.csv"))
 
+# Also using the synthesis statset from Autotrophy paper for the average annual GPP and ER values
+sp_annual_data <- streampulse_synthesis_statset %>%
+  select(sitecode, Name, ann_GPP_C, upper_GPP_C, ann_ER_C, lower_ER_C) %>%
+  rename(site_name = sitecode, long_name = Name, ann_GPP = ann_GPP_C, ann_GPP.upper = upper_GPP_C, 
+         ann_ER = ann_ER_C, ann_ER.lower = lower_ER_C)
+  
 
 # Load the monthly pCO2, CO2f, and K values from Liu et al. 
 liu_pco2 <- read_csv(here("data/aquatic/streams/Liu_data_DL_v20210902/pco2.csv"))
@@ -47,38 +56,185 @@ liu_k <- read_csv(here("data/aquatic/streams/Liu_data_DL_v20210902/k.csv"))
 
 ```
 
-### Calculate mean monthly values for GPP, ER, NEP and K600
+### Scale mean daily to monthly values for GPP, ER; calc mean monthly for NEP and K600
 
-```{r calc monthly avg}
+#### compare dataframes
 
-# Calculate the average monthly values for each site (for GPP, ER, NEP and K600)
+```{r compare monthly and annual dfs}
+
+# Calculate the average daily values by month for each site (for GPP, ER, NEP and K600)
+# How to scale up to monthly data?
+
+# Check to see which sites are in both dfs: 
+
+monthly_only_sites <- monthly_avg_df %>%
+  anti_join(sp_annual_data, by = "site_name") 
+
+print(unique(monthly_only_sites[,1:2]))
+
+#    site_name            long_name                                         
+#    <chr>                <chr>                                             
+#  1 nwis_01656903        FLATLICK BRANCH ABOVE FROG BRANCH AT CHANTILLY, VA
+#  2 nwis_02336120        N.F. PEACHTREE CREEK, BUFORD HWY, NEAR ATLANTA, GA
+#  3 nwis_02336152        SOUTH FORK PEACHTREE AT CASA DR, NR CLARKSTON, GA 
+#  4 nwis_023362095       BURNT FORK CR AT MILLWOOD WAY NEAR CLARKSTON, GA  
+#  5 nwis_02336240        S.F. PEACHTREE CREEK JOHNSON RD, NEAR ATLANTA, GA 
+#  6 nwis_03098600        Mahoning River below West Ave at Youngstown OH    
+#  7 nwis_040871488       WILSON PARK CK @ ST. LUKES HOSPITAL @ MILWAUKEE,WI
+#  8 nwis_04174500        HURON RIVER AT ANN ARBOR, MI                      
+#  9 nwis_04199500        Vermilion River near Vermilion OH                 
+# 10 nwis_04231600        GENESEE RIVER AT FORD STREET BRIDGE, ROCHESTER NY 
+# 11 nwis_06711565        SOUTH PLATTE RIVER AT ENGLEWOOD, CO.              
+# 12 nwis_06893300        INDIAN C AT OVERLAND PARK, KS                     
+# 13 nwis_08057000        Trinity Rv at Dallas, TX                          
+# 14 nwis_12101100        LAKE TAPPS DIVERSION AT DIERINGER, WA             
+# 15 nwis_13206400        EAGLE DRAIN AT EAGLE, ID                          
+# 16 nwis_385520094420000 INDIAN C AT COLLEGE BLVD, JOHNSON CO, KS    
+
+
+annual_only_sites <- sp_annual_data %>%
+  anti_join(monthly_avg_df, by = "site_name")
+
+print(unique(annual_only_sites[,1:2]))
+#    site_name     long_name
+#    <chr>         <chr>
+#  1 AZ_LV         Lower Verde River
+#  2 AZ_OC         Oak Creek
+#  3 AZ_WB         Wet Beaver Creek
+#  4 FL_SF2500     Santa Fe 2500
+#  5 FL_SF2800     Santa Fe 2800
+#  6 FL_WS1500     Worthington Springs 1500
+#  7 IN_SDW        Shatto Ditch Watershed-twostage
+#  8 MD_DRKR       Dead Run
+#  9 NC_NHC        New Hope Creek
+# 10 NC_UNHC       Upper New Hope Creek
+# 11 NH_DCF        Dowst- Cate Town Forest Stream
+# 12 NH_GOF        Merrimack River at Goffs Falls
+# 13 nwis_01493112 CHESTERVILLE BRANCH NEAR CRUMPTON, MD
+# 14 nwis_02235500 BLUE SPRINGS NEAR ORANGE CITY, FL
+# 15 WI_BEC        Black Earth Creek
+# 16 WI_BRW        Brewery Creek
+
+```
+
+These sites are in the monthly df (from high_quality_daily_metabolism_with_SP_covariates.rds) but not the annual df (from 20210902_streampulse_synthesis_statset.csv): 
+    site_name            long_name                                         
+    <chr>                <chr>                                             
+  1 nwis_01656903        FLATLICK BRANCH ABOVE FROG BRANCH AT CHANTILLY, VA
+  2 nwis_02336120        N.F. PEACHTREE CREEK, BUFORD HWY, NEAR ATLANTA, GA
+  3 nwis_02336152        SOUTH FORK PEACHTREE AT CASA DR, NR CLARKSTON, GA 
+  4 nwis_023362095       BURNT FORK CR AT MILLWOOD WAY NEAR CLARKSTON, GA  
+  5 nwis_02336240        S.F. PEACHTREE CREEK JOHNSON RD, NEAR ATLANTA, GA 
+  6 nwis_03098600        Mahoning River below West Ave at Youngstown OH    
+  7 nwis_040871488       WILSON PARK CK @ ST. LUKES HOSPITAL @ MILWAUKEE,WI
+  8 nwis_04174500        HURON RIVER AT ANN ARBOR, MI                      
+  9 nwis_04199500        Vermilion River near Vermilion OH                 
+ 10 nwis_04231600        GENESEE RIVER AT FORD STREET BRIDGE, ROCHESTER NY 
+ 11 nwis_06711565        SOUTH PLATTE RIVER AT ENGLEWOOD, CO.              
+ 12 nwis_06893300        INDIAN C AT OVERLAND PARK, KS                     
+ 13 nwis_08057000        Trinity Rv at Dallas, TX                          
+ 14 nwis_12101100        LAKE TAPPS DIVERSION AT DIERINGER, WA             
+ 15 nwis_13206400        EAGLE DRAIN AT EAGLE, ID                          
+ 16 nwis_385520094420000 INDIAN C AT COLLEGE BLVD, JOHNSON CO, KS    
+
+These sites are in the annual df (from 20210902_streampulse_synthesis_statset.csv) but not the monthly (from high_quality_daily_metabolism_with_SP_covariates.rds): 
+   site_name     long_name
+   <chr>         <chr>
+ 1 AZ_LV         Lower Verde River
+ 2 AZ_OC         Oak Creek
+ 3 AZ_WB         Wet Beaver Creek
+ 4 FL_SF2500     Santa Fe 2500
+ 5 FL_SF2800     Santa Fe 2800
+ 6 FL_WS1500     Worthington Springs 1500
+ 7 IN_SDW        Shatto Ditch Watershed-twostage
+ 8 MD_DRKR       Dead Run
+ 9 NC_NHC        New Hope Creek
+10 NC_UNHC       Upper New Hope Creek
+11 NH_DCF        Dowst- Cate Town Forest Stream
+12 NH_GOF        Merrimack River at Goffs Falls
+13 nwis_01493112 CHESTERVILLE BRANCH NEAR CRUMPTON, MD
+14 nwis_02235500 BLUE SPRINGS NEAR ORANGE CITY, FL
+15 WI_BEC        Black Earth Creek
+16 WI_BRW        Brewery Creek
+
+There are two versions of the monthly file: the _trimmed file ONLY includes sites in both the monthly and annual dfs. I retained the other in case we can find and insert annual average GPP and ER, thus determine monthly average GPP, ER, and NEP for the 16 sites w/o those data
+
+
+#### scale ER and GPP
+```{r scale monthly avgs}
+
+# days in each month (1 = Jan : 12 = Dec)
+days_in_month <- c(31,28,31,30,31,30,31,31,30,31,30,31)
+
+# Average K, scale GPP and ER, calculate NEP as ER(neg) + GPP(pos)
 monthly_avg_df <- df %>%
   mutate(month = month(date)) %>%  # Extract the month from the date column
   group_by(site_name, long_name, month) %>%  # Group by site_name, and month
   summarize(
-    avg_GPP = mean(GPP, na.rm = TRUE),
-    avg_GPP.lower = mean(GPP.lower, na.rm = TRUE),
-    avg_GPP.upper = mean(GPP.upper, na.rm = TRUE),
-    avg_ER = mean(ER, na.rm = TRUE),
-    avg_ER.lower = mean(ER.lower, na.rm = TRUE),
-    avg_ER.upper = mean(ER.upper, na.rm = TRUE),
-    avg_NEP = avg_ER + avg_GPP,
+    avgday_GPP = mean(GPP, na.rm = TRUE),
+    avgday_GPP.lower = mean(GPP.lower, na.rm = TRUE),
+    avgday_GPP.upper = mean(GPP.upper, na.rm = TRUE),
+    avgday_ER = mean(ER, na.rm = TRUE),
+    avgday_ER.lower = mean(ER.lower, na.rm = TRUE),
+    avgday_ER.upper = mean(ER.upper, na.rm = TRUE),
+    avgday_NEP = avgday_ER + avgday_GPP,
     avg_K600 = mean(K600, na.rm = TRUE), 
     avg_K600.lower = mean(K600.lower, na.rm = TRUE),
     avg_K600.upper = mean(K600.upper, na.rm = TRUE),
     
     # Add counts of non-missing values
-    n_GPP  = sum(!is.na(GPP)),
-    n_ER   = sum(!is.na(ER)),
-    n_K600 = sum(!is.na(K600)),
+    ndays_GPP  = sum(!is.na(GPP)),
+    ndays_ER   = sum(!is.na(ER)),
+    ndays_K600 = sum(!is.na(K600)),
     
     # Number of unique years of data in each site/month group (sp = streampulse)
     nyear_sp  = n_distinct(year(date)),
 
     
     .groups = "drop"  # Drops the grouping after summarizing
-  ) 
+    ) %>%
+  
+   # Scale to monthly totals 
+   mutate(days = days_in_month[month], 
+          GPP_monthly_raw = avgday_GPP * days,
+          GPP_monthly.lower = avgday_GPP.lower * days,
+          GPP_monthly.upper = avgday_GPP.upper * days,
+          ER_monthly_raw = avgday_ER * days,
+          ER_monthly.lower = avgday_ER.lower * days,
+          ER_monthly.upper = avgday_ER.upper * days,
+          ) %>%
+  group_by(site_name) %>%
+  mutate(
+    frac_GPP = GPP_monthly_raw / sum(GPP_monthly_raw, na.rm = TRUE),
+    frac_ER  = ER_monthly_raw  / sum(ER_monthly_raw,  na.rm = TRUE)
+  ) %>%
+  ungroup() %>%
+  
+  left_join(
+    sp_annual_data, by = c("site_name", "long_name")) %>% 
+  mutate(
+    GPP_monthly_scaled = frac_GPP * ann_GPP,
+    ER_monthly_scaled  = frac_ER  * ann_ER,
+    NEP_monthly_scaled = ER_monthly_scaled + GPP_monthly_scaled
+  ) %>%
+  
+  select(
+    1:3,                                   # keep first three columns in place
+    GPP_monthly_scaled,
+    ER_monthly_scaled,
+    NEP_monthly_scaled,
+    avg_K600, 
+    avg_K600.lower,
+    avg_K600.upper,
+    ndays_GPP,
+    ndays_ER,
+    ndays_K600,
+    nyear_sp,
+    everything(),                            # then all remaining columns
+  ) %>%
+  select(!days)
 
+# 222 sites, based on sites in the Autotrophy project's high_quality_daily_metabolism_with_SP_covariates.rds file
 
 ```
 
@@ -90,7 +246,18 @@ Extract key information from across_sites_model_data and join with monthly_avg_d
 
 monthly_avg_df <- monthly_avg_df %>%
   left_join(ws_df, by = "site_name") %>%
-  relocate(lat, lon, .after = 2)   # put lat and lon after the 2nd column
+  relocate(lat, lon, .after = 2)  %>% # put lat and lon after the 2nd column
+  select(1:15,            # first 15 columns
+         35:39,           # columns to move up
+         everything()     # all remaining columns
+         )  
+
+# trim one dataset to sites that are in both annual and monthly datasets
+
+monthly_avg_df_trimmed <- monthly_avg_df %>%
+  semi_join(sp_annual_data, by = "site_name")
+# 206 sites
+
 
 # check to see if there are sites w/o ws info in the merged df
 missing_sites <- monthly_avg_df %>%
@@ -98,6 +265,13 @@ missing_sites <- monthly_avg_df %>%
 
 unique(missing_sites$site_name)
 # "nwis_12101100" "nwis_13206400"
+
+missing_sites_trimmed <- monthly_avg_df_trimmed %>%
+  anti_join(ws_df, by = "site_name")
+
+unique(missing_sites_trimmed$site_name)
+# None
+
 ## MISSING ws data for "nwis_12101100" "nwis_13206400"
 
 # Checking to see if these sites are in two other source StreamPulse datasets
@@ -129,9 +303,9 @@ unique(missing_WSs$site_name)
 
 ```
 
-The 'monthly_avg_df' and parent file, 'high_quality_daily_metabolism_with_SP_covariates.rds' (loaded as 'df') are both missing multiple sites that were in other Autotrophy datasets, including 'across_sites_model_data_annual.csv', 20210902_streampulse_synthesis_statset.csv, and 'SupplementalData/across_sites_model_data_annual.csv'. These sites are: "AZ_LV", "AZ_OC", "AZ_WB", "FL_SF2500", "FL_SF2800", "FL_WS1500", "IN_SDW", "MD_DRKR", "NC_NHC", "NC_UNHC", "NH_DCF", "NH_GOF", "nwis_01493112" "nwis_02235500", "WI_BEC", "WI_BRW". Most but not all are StreamPulse core sites and not Powell Center sites. I have not been able to locate daily or monthly data for these sites.
+The 'monthly_avg_df' and parent file, 'high_quality_daily_metabolism_with_SP_covariates.rds' (loaded as 'df') are both missing multiple sites that were in other Autotrophy datasets, including 'across_sites_model_data_annual.csv', 20210902_streampulse_synthesis_statset.csv, and 'SupplementalData/across_sites_model_data_annual.csv'. These sites are: "AZ_LV", "AZ_OC", "AZ_WB", "FL_SF2500", "FL_SF2800", "FL_WS1500", "IN_SDW", "MD_DRKR", "NC_NHC", "NC_UNHC", "NH_DCF", "NH_GOF", "nwis_01493112" "nwis_02235500", "WI_BEC", "WI_BRW". Most but not all are StreamPulse core sites and not Powell Center sites. I have not been able to locate daily or monthly data for these sites in eithe rthe Autotrophy paper files or the StreamPulse files.
 
-In turn, 'monthly_avg_df' and parent file *contain* two sites that were not in the other Autotrophy files. Those sites are: nwis_12101100, "LAKE TAPPS DIVERSION AT DIERINGER, WA", and nwis_13206400, "EAGLE DRAIN AT EAGLE, ID".
+Also, 'monthly_avg_df' and parent file *contain* two sites that were not in the other Autotrophy files. Those sites are: nwis_12101100, "LAKE TAPPS DIVERSION AT DIERINGER, WA", and nwis_13206400, "EAGLE DRAIN AT EAGLE, ID".
 
 ### Reformat and merge Liu et al. dataframes
 
@@ -216,6 +390,7 @@ nrow(liu_data_long) # 34781988 - same as pco2_long, as expected
 ```{r save csvs}
 
 write_csv(monthly_avg_df, here("data/aquatic/streams/monthly_datasets/streampulse_monthly.csv"))
+write_csv(monthly_avg_df_trimmed, here("data/aquatic/streams/monthly_datasets/streampulse_monthly_trimmed.csv"))
 write_csv(liu_data_long, here("data/aquatic/streams/monthly_datasets/liu_monthly.csv"))
 
 ```
