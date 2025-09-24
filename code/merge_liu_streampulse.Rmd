@@ -10,11 +10,13 @@ date: "2024-11-06"
 
 Matt Nichols started the code to merge the StreamPulse GPP dataset with the Liu et al. dataset. He had *already* used the Liu et al. geotiffs (and ArcGIS?) to manually merge the Liu et al. identifier COMID column with StreamPulse data, using the StreamPulse lat longs. The output product is the here(data/aquatic/streams/streampulse_liu_merge.csv') file. 
 
-Christa Torrens completed and streamlined the script, pointing to the correct files and ensuring that the StreamPulse aggregated monthly K600 values were added to the merged dataframe. Other amendments inlude adding this information, R packages, and changing the read-data paths match the current folder structure by using the 'here' package. 
+Christa Torrens cleaned and streamlined the script but did not run it: this was a mistake; quite a bit of information seems to be missing, as well as several steps, including saving updated csvs. Other CT amendments include adding this information, R packages, comments, and changing the read-data paths match the current folder structure by using the 'here' package. 
 
 This script merges the streampulse_liu_merge.csv file with two other files from Liu et al.: co2f.csv and k.csv, both in the here(data/Liu_data_DL_v20210902) folder**. Apparently all the Liu files have COMID as a shared reference category. 
 
-We're still missing some details on the methods for creating streampulse_liu_merge (uploaded in this script), and the files that were used for that merge.  Asking Matt for the files and info 5/2/25 (he's defending soon, so TBD when he'll be able to share)
+We're still missing some details on the methods for creating streampulse_liu_merge (uploaded in this script), and the files that were used for that merge.  Asking Matt for the files and info 5/2/25 (he's defending soon, so TBD when he'll be able to share) 
+
+UPDATE - Matt N. never did share that info, and the COMIDs are wrong. All of Liu's COMIDs have 8 digits, and run from 110000001 to 86007275. 114 our of 222 of Matt's merged COMID's have < 8 digits; and it's not simply due to dropping a terminal '0' or 4, because just adding in 0s to = 8 digits puts several of the COMIDs over 86007275. This is an obvious mismatch (perhaps a match to some other column?) and it's unclear where those values are from/ how they were assigned; therefore I am not confident that the entries that *do* have 8 digits are actually matched to the Liu et al. COMIDs.
 
 The correct/ complete stream datasets to use are found in the here('data/aquatic/streams/AutotrophyProjectFiles) folder. In that folder, the streampulse dataset is 'across_sites_model_data_annual.csv'. The mean monthly K600 values for each site-year-month are in 'StreamPulse_monthly_K.csv'. More information about these and other files in the folder is found in the AutotrophyProjectFiles_README.md file. 
 
@@ -35,7 +37,7 @@ library(here)
 
 streamPulse_summary_df <- read.csv(here("data/aquatic/stream_pulse/20210902_streampulse_synthesis_statset.csv"), header = TRUE, sep = ",")
 
-liu_co2 <- read.csv(here("data/terrestrial/co2f.csv"), header = TRUE, sep = ",")
+liu_co2 <- read.csv(here("data/aquatic/streams/Liu_data_DL_v20210902/co2f.csv"), header = TRUE, sep = ",")
 
 #merge datasets based on COMID column
 
@@ -48,21 +50,13 @@ stream_merge <- merge(streamPulse, liu_co2, by = "COMID")
 
 streampulse_liu_co2 <- read.csv(here("data/aquatic/streams/streampulse_liu_merge.csv"), header = TRUE, sep = ",")
 
-k <- read.csv(here("k.csv"), header = TRUE, sep = ",")  ## PATH? 
+k <- read.csv(here("data/aquatic/streams/Liu_data_DL_v20210902/k.csv"), header = TRUE, sep = ",")  ## PATH? 
 
 ```
 
 ```{r}
 streamP_Liu_CO2 <- merge(streampulse_liu_co2, k, by = "COMID")
 
-write_csv(streamP_Liu_CO2, file=here("data/aquatic/streams/MERGEDstreamPulse_Liu.csv"))
-```
-
-Checking sitenames for consistency between liu and streampulse K
-```{r}
-
-
-
-
+# write_csv(streamP_Liu_CO2, file=here("data/aquatic/streams/MERGEDstreamPulse_Liu.csv"))
 ```
 

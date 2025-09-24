@@ -1,0 +1,248 @@
+---
+title: "StreamPulse_mean_monthly_data"
+author: "Christa Torrens"
+format: html
+editor: visual
+---
+
+## INTRO
+
+The purpose of this script is to get mean monthly values for GPP, ER, NEP and K from the Bernhardt et al. 2018 dataset, "high_quality_daily_metabolism_with_SP_covariates.rds", AND to combine the three Liu et al. datasets into one long version df to match the monthly streampulse df format, where month (containing values 1-12 repeating), pco2, k, and co2f are columns.
+
+### Load packages
+
+```{r packages}
+
+library(tidyverse) # includes dplyr, forcats, ggplot2, lubridate, purrr, readr, stringr, tibble, tidyr
+library(here)
+library(leaflet)
+
+```
+
+### Load data
+
+```{r data}
+
+# Load streampulse data - metab data
+df <- readRDS(here("data/aquatic/streams/AutotrophyProjectFiles/SupplementalData/high_quality_daily_metabolism_with_SP_covariates.rds"))
+
+# Load streampulse data - lat-long/watershed data
+ws_df <- read_csv(here("data/aquatic/streams/AutotrophyProjectFiles/across_sites_model_data_annual.csv")) %>%
+  distinct(site_name, .keep_all = TRUE) %>%
+  select(site_name, lat, lon, Width, NHD_STREAMORDE, NHD_SLOPE, ws_area_km2, ElevWs) %>%
+  rename(width = Width, 
+         stream_order = NHD_STREAMORDE, 
+         slope = NHD_SLOPE, 
+         elevWS = ElevWs)
+
+# using these dfs to check for 2 missing ws_df sites:
+streampulse_synthesis_statset <- read_csv(here("data/aquatic/streams/AutotrophyProjectFiles/20210902_streampulse_synthesis_statset.csv"))
+all_basic_site_data <- read_csv(here("data/aquatic/streams/stream_pulse_DL/all_basic_site_data.csv"))
+
+
+# Load the monthly pCO2, CO2f, and K values from Liu et al. 
+liu_pco2 <- read_csv(here("data/aquatic/streams/Liu_data_DL_v20210902/pco2.csv"))
+liu_co2f <- read_csv(here("data/aquatic/streams/Liu_data_DL_v20210902/co2f.csv"))
+liu_k <- read_csv(here("data/aquatic/streams/Liu_data_DL_v20210902/k.csv"))
+
+```
+
+### Calculate mean monthly values for GPP, ER, NEP and K600
+
+```{r calc monthly avg}
+
+# Calculate the average monthly values for each site (for GPP, ER, NEP and K600)
+monthly_avg_df <- df %>%
+  mutate(month = month(date)) %>%  # Extract the month from the date column
+  group_by(site_name, long_name, month) %>%  # Group by site_name, and month
+  summarize(
+    avg_GPP = mean(GPP, na.rm = TRUE),
+    avg_GPP.lower = mean(GPP.lower, na.rm = TRUE),
+    avg_GPP.upper = mean(GPP.upper, na.rm = TRUE),
+    avg_ER = mean(ER, na.rm = TRUE),
+    avg_ER.lower = mean(ER.lower, na.rm = TRUE),
+    avg_ER.upper = mean(ER.upper, na.rm = TRUE),
+    avg_NEP = avg_ER + avg_GPP,
+    avg_K600 = mean(K600, na.rm = TRUE), 
+    avg_K600.lower = mean(K600.lower, na.rm = TRUE),
+    avg_K600.upper = mean(K600.upper, na.rm = TRUE),
+    
+    # Add counts of non-missing values
+    n_GPP  = sum(!is.na(GPP)),
+    n_ER   = sum(!is.na(ER)),
+    n_K600 = sum(!is.na(K600)),
+    
+    # Number of unique years of data in each site/month group (sp = streampulse)
+    nyear_sp  = n_distinct(year(date)),
+
+    
+    .groups = "drop"  # Drops the grouping after summarizing
+  ) 
+
+
+```
+
+### Add lat-lon and watershed data
+
+Extract key information from across_sites_model_data and join with monthly_avg_data Determine missing info from both dfs
+
+```{r add gps, ws data}
+
+monthly_avg_df <- monthly_avg_df %>%
+  left_join(ws_df, by = "site_name") %>%
+  relocate(lat, lon, .after = 2)   # put lat and lon after the 2nd column
+
+# check to see if there are sites w/o ws info in the merged df
+missing_sites <- monthly_avg_df %>%
+  anti_join(ws_df, by = "site_name")
+
+unique(missing_sites$site_name)
+# "nwis_12101100" "nwis_13206400"
+## MISSING ws data for "nwis_12101100" "nwis_13206400"
+
+# Checking to see if these sites are in two other source StreamPulse datasets
+still_missing <-missing_sites %>%
+  anti_join(streampulse_synthesis_statset,
+            by = c("site_name" = "sitecode"))
+
+unique(still_missing$site_name)
+
+still_missing2 <- missing_sites %>%
+  anti_join(all_basic_site_data,
+            by = c("site_name" = "siteID"))
+
+unique(still_missing2$site_name)
+# "nwis_12101100" "nwis_13206400"  => both sites still missing from the two additional dataframes
+# long_name = "LAKE TAPPS DIVERSION AT DIERINGER, WA" "EAGLE DRAIN AT EAGLE, ID"
+# Sounds like these may not have been free-flowing rivers... maybe dam impacted?
+
+
+# also, what's missing from the monthly summary df that IS in the ws_df?
+
+missing_WSs <- ws_df %>%
+  anti_join(monthly_avg_df, by = "site_name")
+
+unique(missing_WSs$site_name)
+# "AZ_LV"         "AZ_OC"         "AZ_WB"         "FL_SF2500"     "FL_SF2800"     "FL_WS1500"     "IN_SDW"       "MD_DRKR"       "NC_NHC"        "NC_UNHC"       "NH_DCF"        "NH_GOF"        "nwis_01493112"     "nwis_02235500" "WI_BEC"        "WI_BRW"  
+
+# None of these are in the 'high quality daily metabolism...' source file, although apparently were included in the Autotrophy paper; not sure where to find the daily data for any of them.
+
+```
+
+The 'monthly_avg_df' and parent file, 'high_quality_daily_metabolism_with_SP_covariates.rds' (loaded as 'df') are both missing multiple sites that were in other Autotrophy datasets, including 'across_sites_model_data_annual.csv', 20210902_streampulse_synthesis_statset.csv, and 'SupplementalData/across_sites_model_data_annual.csv'. These sites are: "AZ_LV", "AZ_OC", "AZ_WB", "FL_SF2500", "FL_SF2800", "FL_WS1500", "IN_SDW", "MD_DRKR", "NC_NHC", "NC_UNHC", "NH_DCF", "NH_GOF", "nwis_01493112" "nwis_02235500", "WI_BEC", "WI_BRW". Most but not all are StreamPulse core sites and not Powell Center sites. I have not been able to locate daily or monthly data for these sites.
+
+In turn, 'monthly_avg_df' and parent file *contain* two sites that were not in the other Autotrophy files. Those sites are: nwis_12101100, "LAKE TAPPS DIVERSION AT DIERINGER, WA", and nwis_13206400, "EAGLE DRAIN AT EAGLE, ID".
+
+### Reformat and merge Liu et al. dataframes
+
+Change to long format, to match the StreamPulse monthly summaries; then merge by COMID.
+
+```{r reformat Liu dfs}
+# pCO2 data
+pco2_long <- liu_pco2 %>%
+  pivot_longer(
+    cols = -COMID,
+    names_to = "month",
+    values_to = "pCO2_liu"
+  ) %>%
+  mutate(
+    # extract the numeric part after "co2_"
+    month = as.integer(str_extract(month, "(?<=co2_)\\d+"))
+  ) 
+
+nrow(pco2_long) # 34781988
+
+missing_pco2 <- k_long %>%
+  anti_join(pco2_long, by = "COMID") %>%
+  mutate(COMID = as.integer(COMID))
+
+
+unique(missing_pco2$COMID)
+# 31000001 61000003
+
+# K data
+k_long <- liu_k %>%
+  pivot_longer(
+    cols = -COMID,
+    names_to = "month",
+    values_to = "k_liu"
+  ) %>%
+  mutate(
+    month = str_remove(month, "_k"),  # remove the "_k" suffix
+    month = match(month, month.abb)   # convert "Jan" -> 1, etc.
+  )
+
+nrow(k_long) # 34782012
+
+
+missing_k <- pco2_long %>%
+  anti_join(k_long, by = "COMID")
+# Empty
+
+# CO2 flux data
+co2f_long <- liu_co2f %>%
+  pivot_longer(
+    cols = -COMID,                     # all columns except COMID
+    names_to = "month",                # new column name for the original column names
+    values_to = "co2flux_liu"                    # new column for the values
+  ) %>%
+    mutate(
+    month = str_remove(month, "_co2f"),  # remove the "_co2f" suffix
+    month = match(month, month.abb)      # convert "Jan" -> 1, etc.
+  )
+
+nrow(co2f_long) #34738248
+
+
+# hm, different lengths... odd. 
+missing_co2f <- k_long %>%
+  anti_join(co2f_long, by = "COMID")
+  
+unique(missing_co2f$COMID)
+
+
+# Left-join to combine the dataframes, pCO2, k, co2f (order ensures complete pco2 and k)
+
+liu_data_long <- pco2_long %>%
+  left_join(k_long, by = c("COMID", "month")) %>%
+  left_join(co2f_long, by = c("COMID", "month"))
+
+nrow(liu_data_long) # 34781988 - same as pco2_long, as expected
+
+```
+
+### Save the dataframes as CSVs
+
+```{r save csvs}
+
+write_csv(monthly_avg_df, here("data/aquatic/streams/monthly_datasets/streampulse_monthly.csv"))
+write_csv(liu_data_long, here("data/aquatic/streams/monthly_datasets/liu_monthly.csv"))
+
+```
+
+### Site location mapping
+
+```{r sitemaps}
+## where are these sites?
+
+  
+map_df <- monthly_avg_df %>%
+  select(site_name, long_name, lat, lon) %>%
+  # Create a popup column
+  mutate(popup = paste0(
+    "<b>Site:</b> ", site_name, "<br/>",
+    "<b>Name:</b> ", long_name, "<br/>"
+    # ,
+    # "<b>COMID:</b> ", COMID
+  ))
+
+
+# Create interactive map with OpenStreetMap tiles
+leaflet(map_df) %>%
+  addTiles() %>%  # default is OpenStreetMap
+  addMarkers(lng = ~Lon, lat = ~Lat, popup = ~popup) %>%
+  fitBounds(lng1 = min(map_df$Lon), lat1 = min(map_df$Lat),
+            lng2 = max(map_df$Lon), lat2 = max(map_df$Lat))  
+  
+
+```

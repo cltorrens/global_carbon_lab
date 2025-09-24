@@ -1,0 +1,37 @@
+---
+title: "stream_team"
+output:
+  pdf_document: default
+  html_document: default
+date: "2024-11-06"
+---
+
+
+```{r}
+#upload datasets
+
+setwd()
+
+streamPulse <- read.csv("20210902_streampulse_synthesis_statset.csv", header = TRUE, sep = ",")
+
+lui_co2 <- read.csv("co2f.csv", header = TRUE, sep = ",")
+
+#merge datasets based on COMID column
+
+stream_merge <- merge(streamPulse, lui_co2, by = "COMID")
+
+```
+
+```{r}
+#upload and add the Lui et al and streamPulse dataset
+
+streampulse_lui_co2 <- read.csv("streampulse_lui_merge.csv", header = TRUE, sep = ",")
+
+k <- read.csv("k.csv", header = TRUE, sep = ",")
+
+```
+
+```{r}
+streamP_Lui_CO2 <- merge(streampulse_lui_co2, k, by = "COMID")
+```
+
