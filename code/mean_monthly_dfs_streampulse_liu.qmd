@@ -412,7 +412,8 @@ write_csv(liu_data_long, here("data/aquatic/streams/monthly_datasets/liu_monthly
 
 ```
 
-### plot monthly averages by 2 methods: 1) average-day GPP and ER * ndays in the month, and 2) normalizing that by the Autotrophy paper annualized GPP and ER values for each site)
+###  Comparing two methods for attaining monthly values
+Monthly GPP and ER values were calculated two different ways: 1) group by site and month, average all values in a month to get an average daily value for that site and month, then multiply by the # of days in the month;  and 2) take that scaled monthly value and normalize it using the Autotrophy paper's annualized GPP and ER values for each site. Comparison plots for the two methods follow; the dashed red line is the 1:1 line. 
 
 ```{r plot comparison}
 
@@ -446,7 +447,7 @@ compare_NEP <- monthly_avg_df_trimmed %>%
   geom_point() +
   geom_abline(intercept = 0, slope = 1, color = "darkred", linetype = "dashed") +
     labs(title = "NEP methods comparison",
-       x = "raw monthly NEP",
+       x = "scaled monthly NEP",
        y = "normalized monthly NEP") +
   theme_bw()
 
