@@ -1,8 +1,17 @@
 ---
 title: "StreamPulse_mean_monthly_data"
 author: "Christa Torrens"
-format: html
+format: 
+  html:
+    code-fold: true
+    code-tools: true   # optional: shows "Show code" / "Hide code" buttons globally
+    self-contained: true # can share w others and they won't need the source doc. 
+execute:
+  echo: true
+  warning: false
+  message: false
 editor: visual
+
 ---
 
 ## INTRO
@@ -61,7 +70,8 @@ liu_k <- read_csv(here("data/aquatic/streams/Liu_data_DL_v20210902/k.csv"))
 #### compare dataframes
 
 ```{r compare monthly and annual dfs}
-
+#| eval: false
+#| 
 # Calculate the average daily values by month for each site (for GPP, ER, NEP and K600)
 # How to scale up to monthly data?
 
@@ -196,26 +206,27 @@ monthly_avg_df <- df %>%
   
    # Scale to monthly totals 
    mutate(days = days_in_month[month], 
-          GPP_monthly_raw = avgday_GPP * days,
-          GPP_monthly.lower = avgday_GPP.lower * days,
-          GPP_monthly.upper = avgday_GPP.upper * days,
-          ER_monthly_raw = avgday_ER * days,
-          ER_monthly.lower = avgday_ER.lower * days,
-          ER_monthly.upper = avgday_ER.upper * days,
+          GPP_monthly_scaled = avgday_GPP * days,
+          GPP_monthly_scaled.lower = avgday_GPP.lower * days,
+          GPP_monthly_scaled.upper = avgday_GPP.upper * days,
+          ER_monthly_scaled = avgday_ER * days,
+          ER_monthly_scaled.lower = avgday_ER.lower * days,
+          ER_monthly_scaled.upper = avgday_ER.upper * days,
+          NEP_monthly_scaled = ER_monthly_scaled + GPP_monthly_scaled
           ) %>%
   group_by(site_name) %>%
   mutate(
-    frac_GPP = GPP_monthly_raw / sum(GPP_monthly_raw, na.rm = TRUE),
-    frac_ER  = ER_monthly_raw  / sum(ER_monthly_raw,  na.rm = TRUE)
+    frac_GPP = GPP_monthly_scaled / sum(GPP_monthly_scaled, na.rm = TRUE),
+    frac_ER  = ER_monthly_scaled  / sum(ER_monthly_scaled,  na.rm = TRUE)
   ) %>%
   ungroup() %>%
   
   left_join(
     sp_annual_data, by = c("site_name", "long_name")) %>% 
   mutate(
-    GPP_monthly_scaled = frac_GPP * ann_GPP,
-    ER_monthly_scaled  = frac_ER  * ann_ER,
-    NEP_monthly_scaled = ER_monthly_scaled + GPP_monthly_scaled
+    GPP_monthly_norm = frac_GPP * ann_GPP,
+    ER_monthly_norm  = frac_ER  * ann_ER,
+    NEP_monthly_norm = ER_monthly_norm + GPP_monthly_norm
   ) %>%
   
   select(
@@ -223,6 +234,9 @@ monthly_avg_df <- df %>%
     GPP_monthly_scaled,
     ER_monthly_scaled,
     NEP_monthly_scaled,
+    GPP_monthly_norm,
+    ER_monthly_norm,
+    NEP_monthly_norm,
     avg_K600, 
     avg_K600.lower,
     avg_K600.upper,
@@ -312,6 +326,8 @@ Also, 'monthly_avg_df' and parent file *contain* two sites that were not in the 
 Change to long format, to match the StreamPulse monthly summaries; then merge by COMID.
 
 ```{r reformat Liu dfs}
+#| eval: false
+
 # pCO2 data
 pco2_long <- liu_pco2 %>%
   pivot_longer(
@@ -388,6 +404,7 @@ nrow(liu_data_long) # 34781988 - same as pco2_long, as expected
 ### Save the dataframes as CSVs
 
 ```{r save csvs}
+#| eval: false
 
 write_csv(monthly_avg_df, here("data/aquatic/streams/monthly_datasets/streampulse_monthly.csv"))
 write_csv(monthly_avg_df_trimmed, here("data/aquatic/streams/monthly_datasets/streampulse_monthly_trimmed.csv"))
@@ -395,13 +412,57 @@ write_csv(liu_data_long, here("data/aquatic/streams/monthly_datasets/liu_monthly
 
 ```
 
+### plot monthly averages by 2 methods: 1) average-day GPP and ER * ndays in the month, and 2) normalizing that by the Autotrophy paper annualized GPP and ER values for each site)
+
+```{r plot comparison}
+
+compare_GPP <- monthly_avg_df_trimmed %>%
+  ggplot(aes(x=GPP_monthly_scaled, y=GPP_monthly_norm)) + 
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1, color = "darkred", linetype = "dashed") +
+  labs(title = "GPP methods comparison",
+       x = "scaled monthly GPP",
+       y = "normalized monthly GPP") +
+  theme_bw()
+
+# quartz()
+compare_GPP
+
+compare_ER <- monthly_avg_df_trimmed %>%
+  ggplot(aes(x=ER_monthly_scaled, y=ER_monthly_norm)) + 
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1, color = "darkred", linetype = "dashed") +
+    labs(title = "ER methods comparison",
+       x = "scaled monthly ER",
+       y = "normalized monthly ER") +
+  theme_bw()
+
+# quartz()
+compare_ER
+
+
+compare_NEP <- monthly_avg_df_trimmed %>%
+  ggplot(aes(x=NEP_monthly_scaled, y=NEP_monthly_norm)) + 
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1, color = "darkred", linetype = "dashed") +
+    labs(title = "NEP methods comparison",
+       x = "raw monthly NEP",
+       y = "normalized monthly NEP") +
+  theme_bw()
+
+# quartz()
+compare_NEP
+
+```
+
+
 ### Site location mapping
 
 ```{r sitemaps}
 ## where are these sites?
 
   
-map_df <- monthly_avg_df %>%
+map_df <- monthly_avg_df_trimmed %>%
   select(site_name, long_name, lat, lon) %>%
   # Create a popup column
   mutate(popup = paste0(
@@ -415,9 +476,9 @@ map_df <- monthly_avg_df %>%
 # Create interactive map with OpenStreetMap tiles
 leaflet(map_df) %>%
   addTiles() %>%  # default is OpenStreetMap
-  addMarkers(lng = ~Lon, lat = ~Lat, popup = ~popup) %>%
-  fitBounds(lng1 = min(map_df$Lon), lat1 = min(map_df$Lat),
-            lng2 = max(map_df$Lon), lat2 = max(map_df$Lat))  
+  addMarkers(lng = ~lon, lat = ~lat, popup = ~popup) %>%
+  fitBounds(lng1 = min(map_df$lon), lat1 = min(map_df$lat),
+            lng2 = max(map_df$lon), lat2 = max(map_df$lat))  
   
 
 ```
